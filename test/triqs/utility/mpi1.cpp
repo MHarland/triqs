@@ -21,7 +21,7 @@
 #include <iostream>
 #include <type_traits>
 #include <triqs/arrays.hpp>
-#include <triqs/utility/mpi.hpp>
+#include <triqs/utility/mpi1.hpp>
 #include <iostream>
 #include <sstream>
 
@@ -29,30 +29,14 @@ using namespace triqs;
 using namespace triqs::arrays;
 using namespace triqs::mpi;
 
- struct my_object {
+// a struct containing arrays. I only allow here boost serialization form, no mpi stuff here.
+struct S { 
+ array<long,2> x; array<double,1> y;
+ template<typename Ar> friend void serialize( Ar & ar, S & s) { ar & s.x; ar & s.y;}
+};
 
-  array<double, 1> a, b;
-
-
-  struct mpi_implementation : mpi_impl_tuple<my_object>{};
-
-  my_object() = default;
-  template <typename Tag> my_object(mpi_lazy<Tag, my_object> x) : my_object() { operator=(x); }
-
-  template <typename Tag> my_object &operator=(mpi_lazy<Tag, my_object> x) {
-   mpi_impl_tuple<my_object>::complete_operation(*this, x);
-   return *this;
-  }
- };
-
-  auto view_as_tuple(my_object const &x) DECL_AND_RETURN(std::tie(x.a, x.b));
-  auto view_as_tuple(my_object &x) DECL_AND_RETURN(std::tie(x.a, x.b));
- 
 int main(int argc, char* argv[]) {
-
-  auto obj = my_object();
-
-/* 
+ 
  mpi::environment env(argc, argv);
  mpi::communicator world;
 
@@ -96,7 +80,7 @@ int main(int argc, char* argv[]) {
  auto cC = ca; 
  mpi::reduce_in_place (world, cC);
  if (world.rank() ==0) std::cout<<" cC = "<<cC<< std::endl;
-*/
+
  return 0;
 }
 
