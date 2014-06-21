@@ -184,18 +184,14 @@ class BlockGf(object):
                 if not(no_exception) : raise  
     
     def __reduce__(self):
-        return call_factory_from_dict, (self.__class__,self.__reduce_to_dict__())
+        return call_factory_from_dict, (self.__class__,self.name, self.__reduce_to_dict__())
 
     def __reduce_to_dict__(self):
-        val = {'name' : self.name, "note": self.note, "indices" : repr(self.__indices) }
-        val.update( dict(self ) )
-        return val 
+        return dict(self)
 
     @classmethod
-    def __factory_from_dict__(cls,value):
-        exec "ind=%s"%value['indices']
-        res = cls(name_list = ind, block_list = [value[i] for i in ind], make_copies=False, name=value['name'])
-        res.note = value['note']
+    def __factory_from_dict__(cls, name, value):
+        res = cls(name_list = value.keys(), block_list = value.values(), make_copies=False, name=name)
         return res
 
     #--------------  Pretty print -------------------------
