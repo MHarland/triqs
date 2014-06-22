@@ -20,6 +20,7 @@ This is the reference manual for the Python and the C++ libraries.
 .. toctree::
    :maxdepth: 2
 
+   reference/data_struct/contents
    reference/python/contents
    reference/c++/contents
 
