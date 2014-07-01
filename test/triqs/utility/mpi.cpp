@@ -21,8 +21,9 @@
 #include <iostream>
 #include <type_traits>
 #include <triqs/arrays.hpp>
-#include <triqs/utility/mpi.hpp>
+#include <triqs/mpi.hpp>
 #include <iostream>
+#include <fstream>
 #include <sstream>
 
 using namespace triqs;
@@ -47,12 +48,51 @@ using namespace triqs::mpi;
 
   auto view_as_tuple(my_object const &x) DECL_AND_RETURN(std::tie(x.a, x.b));
   auto view_as_tuple(my_object &x) DECL_AND_RETURN(std::tie(x.a, x.b));
- 
+
+
 int main(int argc, char* argv[]) {
 
-  auto obj = my_object();
+ mpi::environment env(argc, argv);
+ mpi::communicator world;
 
-/* 
+ auto obj = my_object();
+
+  //using ARR = array<double,2>;
+  using ARR = array<std::complex<double>,2>;
+
+  ARR A(7,3), B, AA;
+
+  triqs::clef::placeholder<0> i_;
+  triqs::clef::placeholder<1> j_;
+
+  A(i_,j_) << i_ + 10*j_;
+
+  B = mpi::scatter(A, world);
+
+  ARR C = mpi::scatter(A, world);
+
+  std::ofstream out("node" + std::to_string(world.rank()));
+  out << "  A = " << A << std::endl;
+  out << "  B = " << B << std::endl;
+  out << "  C = " << C << std::endl;
+
+  B *=-1;
+  //AA = A;
+  AA() =0;
+
+  AA = mpi::gather(B, world);
+  out << " AA = " << AA << std::endl;
+
+  mpi::broadcast(AA, world);
+  out << " cast AA = " << AA << std::endl;
+
+  AA() =0;
+ 
+
+  AA = mpi::allgather(B, world);
+  out << " AA = " << AA << std::endl;
+
+/*
  mpi::environment env(argc, argv);
  mpi::communicator world;
 
@@ -69,10 +109,10 @@ int main(int argc, char* argv[]) {
  if (world.rank() ==0) std::cout<<" C = "<<C<< "  should be "<< std::endl << array<long,2>(s*A) <<std::endl;
 
  // test rvalue views
- C = A; 
+ C = A;
  mpi::reduce_in_place (world, C());
  if (world.rank() ==0) std::cout<<" C = "<<C<< "  should be "<< std::endl << array<long,2>(s*A) <<std::endl;
- 
+
  // more complex class
  auto x = S { { {1,2},{3,4}}, { 1,2,3,4}};
  mpi::reduce_in_place (world, x);
@@ -93,7 +133,7 @@ int main(int argc, char* argv[]) {
 
  // more complex object
  auto ca = array< array<int,1>, 1 > { array<int,1>{1,2}, array<int,1>{3,4}};
- auto cC = ca; 
+ auto cC = ca;
  mpi::reduce_in_place (world, cC);
  if (world.rank() ==0) std::cout<<" cC = "<<cC<< std::endl;
 */
