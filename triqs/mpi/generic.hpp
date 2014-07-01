@@ -19,10 +19,8 @@
  *
  ******************************************************************************/
 #pragma once
-#include <triqs/utility/c14.hpp>
+#include "./base.hpp"
 #include <triqs/utility/tuple_tools.hpp>
-#include <boost/mpi.hpp>
-#include <mpi.h>
 
 namespace triqs {
 namespace mpi {
@@ -57,7 +55,7 @@ namespace mpi {
    auto l = [laz](auto & t, auto & s) {
     t = triqs::mpi::mpi_impl<T>::invoke(Tag(), laz.c, s, laz.root);
    };
-   //tuple::for_each_on_zip2(l, view_as_tuple(target), view_as_tuple(laz.ref));
+   triqs::tuple::for_each_zip(l, view_as_tuple(target), view_as_tuple(laz.ref));
   }
 #else
 
@@ -95,7 +93,7 @@ namespace mpi {
 
   template <typename Tag> static void complete_operation(T &target, mpi_lazy<Tag, T> laz) {
    auto l = aux3<Tag>{laz};
-   //tuple::for_each_on_zip2(l, view_as_tuple(target), view_as_tuple(laz.ref));
+   triqs::tuple::for_each_zip(l, view_as_tuple(target), view_as_tuple(laz.ref));
   }
 #endif
 
