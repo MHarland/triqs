@@ -140,5 +140,18 @@ namespace mpi {
  // mpl_impl_basic is the mpi_impl<T> is T is a number (including complex)
  template <typename T>
  struct mpi_impl<T, std14::enable_if_t<std::is_arithmetic<T>::value || triqs::is_complex<T>::value>> : mpi_impl_basic<T> {};
+
+ //------------ Some helper function 
+ 
+ inline long slice_length(size_t imax, communicator c, int r) {
+  auto imin = 0;
+  long j = (imax - imin + 1) / c.size();
+  long i = imax - imin + 1 - c.size() * j;
+  auto r_min = (r <= i - 1 ? imin + r * (j + 1) : imin + r * j + i);
+  auto r_max = (r <= i - 1 ? imin + (r + 1) * (j + 1) - 1 : imin + (r + 1) * j + i - 1);
+  return r_max - r_min + 1;
+ };
+
+
 }
 }
