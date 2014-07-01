@@ -37,7 +37,6 @@ namespace mpi {
   MPI_Comm _com = MPI_COMM_WORLD;
 
   public:
-  
   communicator() = default;
 
   MPI_Comm get() const { return _com; }
@@ -69,11 +68,6 @@ namespace mpi {
  /// The implementation of mpi ops for each type
  template <typename T, typename Enable = void> struct mpi_impl;
 
- template <typename T> void do_nothing(T...) {}
-
- // If type T has a mpi_implementation nested struct, then it is mpi_impl<T>.
- template <typename T> struct mpi_impl<T, decltype(do_nothing(T::mpi_implementation()))> : T::mpi_implementation {};
-
  // ----------------------------------------
  // ------- top level functions -------
  // ----------------------------------------
@@ -104,7 +98,7 @@ namespace mpi {
  };
  D(int, MPI_INT) D(long, MPI_LONG) D(double, MPI_DOUBLE) D(float, MPI_FLOAT) D(std::complex<double>, MPI_DOUBLE_COMPLEX);
  D(unsigned long, MPI_UNSIGNED_LONG);
-#undef D 
+#undef D
 
  /** ------------------------------------------------------------
    *  basic types
@@ -141,7 +135,7 @@ namespace mpi {
  template <typename T>
  struct mpi_impl<T, std14::enable_if_t<std::is_arithmetic<T>::value || triqs::is_complex<T>::value>> : mpi_impl_basic<T> {};
 
- //------------ Some helper function 
+ //------------ Some helper function
  inline long slice_length(size_t imax, communicator c, int r) {
   auto imin = 0;
   long j = (imax - imin + 1) / c.size();
@@ -150,8 +144,5 @@ namespace mpi {
   auto r_max = (r <= i - 1 ? imin + (r + 1) * (j + 1) - 1 : imin + (r + 1) * j + i - 1);
   return r_max - r_min + 1;
  };
-
-
-
 }
 }

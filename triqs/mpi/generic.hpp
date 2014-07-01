@@ -22,6 +22,7 @@
 #include "./base.hpp"
 #include <triqs/utility/tuple_tools.hpp>
 
+#define TRIQS_MPI_IMPLEMENTED_AS_TUPLEVIEW using triqs_mpi_as_tuple = void;
 namespace triqs {
 namespace mpi {
 
@@ -37,58 +38,55 @@ namespace mpi {
   *  ----------------------------------------------------------  **/
  template <typename T> struct mpi_impl_tuple {
 
+  mpi_impl_tuple() = default;
   template <typename Tag> static mpi_lazy<Tag, T> invoke(Tag, communicator c, T const &a, int root) {
-   check(a);
    return {a, root, c};
   }
 
 #ifdef __cpp_generic_lambdas
   static void reduce_in_place(communicator c, T &a, int root) {
-   tuple::for_each([c, root](auto &x) { triqs::mpi::reduce_in_place(c, x, root); }, view_as_tuple(a));
+   tuple::for_each(view_as_tuple(a), [c, root](auto &x) { triqs::mpi::reduce_in_place(x, c, root); });
   }
 
   static void broadcast(communicator c, T &a, int root) {
-   tuple::for_each([c, root](auto &x) { triqs::mpi::broadcast(c, x, root); }, view_as_tuple(a));
+   tuple::for_each(view_as_tuple(a), [c, root](auto &x) { triqs::mpi::broadcast(x, c, root); });
   }
 
-  template <typename Tag> static void complete_operation(T &target, mpi_lazy<Tag, T> laz) {
-   auto l = [laz](auto & t, auto & s) {
-    t = triqs::mpi::mpi_impl<T>::invoke(Tag(), laz.c, s, laz.root);
-   };
+  template <typename Tag> static T &complete_operation(T &target, mpi_lazy<Tag, T> laz) {
+   auto l = [laz](auto &t, auto &s) { t = triqs::mpi::mpi_impl<std::decay_t<decltype(s)>>::invoke(Tag(), laz.c, s, laz.root); };
    triqs::tuple::for_each_zip(l, view_as_tuple(target), view_as_tuple(laz.ref));
+   return target;
   }
 #else
 
-  struct aux1{
-    communicator c;
-    int root;
+  struct aux1 {
+   communicator c;
+   int root;
 
-    template <typename T1>
-    void operator()(T1 &x) const { triqs::mpi::reduce_in_place(c, x, root); }
+   template <typename T1> void operator()(T1 &x) const { triqs::mpi::reduce_in_place(c, x, root); }
   };
 
   static void reduce_in_place(communicator c, T &a, int root) {
-   tuple::for_each(aux1{c,root}, view_as_tuple(a));
+   tuple::for_each(aux1{c, root}, view_as_tuple(a));
   }
 
-  struct aux2{
-    communicator c;
-    int root;
+  struct aux2 {
+   communicator c;
+   int root;
 
-    template <typename T2>
-    void operator()(T2 &x) const { triqs::mpi::broadcast(c, x, root); }
+   template <typename T2> void operator()(T2 &x) const { triqs::mpi::broadcast(c, x, root); }
   };
 
   static void broadcast(communicator c, T &a, int root) {
-   tuple::for_each(aux2{c,root}, view_as_tuple(a));
+   tuple::for_each(aux2{c, root}, view_as_tuple(a));
   }
 
-  template <typename Tag>
-  struct aux3{
-    mpi_lazy<Tag, T> laz;
+  template <typename Tag> struct aux3 {
+   mpi_lazy<Tag, T> laz;
 
-    template <typename T1, typename T2>
-    void operator()(T1 &t, T2 &s) const { t = triqs::mpi::mpi_impl<T>::invoke(Tag(), laz.c, laz.s); }
+   template <typename T1, typename T2> void operator()(T1 &t, T2 &s) const {
+    t = triqs::mpi::mpi_impl<T2>::invoke(Tag(), laz.c, laz.s);
+   }
   };
 
   template <typename Tag> static void complete_operation(T &target, mpi_lazy<Tag, T> laz) {
@@ -96,11 +94,10 @@ namespace mpi {
    triqs::tuple::for_each_zip(l, view_as_tuple(target), view_as_tuple(laz.ref));
   }
 #endif
-
  };
- 
-}}//namespace
 
-
-
+ // If type T has a mpi_implementation nested struct, then it is mpi_impl<T>.
+ template <typename T> struct mpi_impl<T, typename T::triqs_mpi_as_tuple> : mpi_impl_tuple<T> {};
+}
+} // namespace
 

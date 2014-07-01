@@ -34,73 +34,64 @@ struct my_object {
 
  array<double, 1> a, b;
 
- using mpi_implementation = mpi_impl_tuple<my_object>;
+ TRIQS_MPI_IMPLEMENTED_AS_TUPLEVIEW;
 
  my_object() = default;
+
+ my_object(int s) : a(s), b(s) {
+  clef::placeholder<0> i_;
+  a(i_) << i_;
+  b(i_) << -i_;
+ }
+
+ // construction from the lazy is delegated to =
  template <typename Tag> my_object(mpi_lazy<Tag, my_object> x) : my_object() { operator=(x); }
 
+ // assigment is almost done already...
  template <typename Tag> my_object &operator=(mpi_lazy<Tag, my_object> x) {
-  mpi_impl_tuple<my_object>::complete_operation(*this, x);
-  return *this;
+  return mpi_impl_tuple<my_object>::complete_operation(*this, x);
  }
 };
 
-auto view_as_tuple(my_object const &x) DECL_AND_RETURN(std::tie(x.a, x.b));
-auto view_as_tuple(my_object &x) DECL_AND_RETURN(std::tie(x.a, x.b));
+// non intrusive 
+auto view_as_tuple(my_object const &x) RETURN(std::tie(x.a, x.b));
+auto view_as_tuple(my_object &x) RETURN(std::tie(x.a, x.b));
 
+// --------------------------------------
 
 int main(int argc, char *argv[]) {
 
  mpi::environment env(argc, argv);
  mpi::communicator world;
+ 
+ std::ofstream out("t2_node" + std::to_string(world.rank()));
 
- auto obj = my_object();
+ auto ob = my_object(10);
+ mpi::broadcast(ob);
+ 
+ out << "  a = " << ob.a << std::endl;
+ out << "  b = " << ob.b << std::endl;
+ 
+ auto ob2 = ob;
 
- /*
-  mpi::environment env(argc, argv);
-  mpi::communicator world;
+ // ok scatter all components
+ ob2 = mpi::scatter(ob);
 
-  array<long,2> A {{1,2}, {3,4}}, C(2,2);
+ out << " scattered  a = " << ob2.a << std::endl;
+ out << " scattered  b = " << ob2.b << std::endl;
 
-  // boost mpi
-  boost::mpi::reduce (world, A,C, std::c14::plus<>(),0);
-  int s= world.size();
-  if (world.rank() ==0) std::cout<<" C = "<<C<< "  should be "<< std::endl << array<long,2>(s*A) <<std::endl;
+ ob2.a *= world.rank()+1; // change it a bit
 
-  // triqs mpi
-  C = A;
-  mpi::reduce_in_place (world, C);
-  if (world.rank() ==0) std::cout<<" C = "<<C<< "  should be "<< std::endl << array<long,2>(s*A) <<std::endl;
+ // now regroup...
+ ob = mpi::gather(ob2);
+ out << " gather a = " << ob.a << std::endl;
+ out << " gather b = " << ob.b << std::endl;
 
-  // test rvalue views
-  C = A;
-  mpi::reduce_in_place (world, C());
-  if (world.rank() ==0) std::cout<<" C = "<<C<< "  should be "<< std::endl << array<long,2>(s*A) <<std::endl;
+ // allgather
+ ob = mpi::allgather(ob2);
+ out << " allgather a = " << ob.a << std::endl;
+ out << " allgather b = " << ob.b << std::endl;
 
-  // more complex class
-  auto x = S { { {1,2},{3,4}}, { 1,2,3,4}};
-  mpi::reduce_in_place (world, x);
-  if (world.rank() ==0) std::cout<<" S.x = "<<x.x<<" S.y = "<<x.y<<std::endl;
-
-  // a simple number
-  double y = 1+world.rank(), z=0;
-  mpi::reduce(world,y,z);
-  if (world.rank() ==0) std::cout<<" y = "<<y<< "  should be "<< 1+world.rank()<<std::endl;
-  if (world.rank() ==0) std::cout<<" z = "<<z<< "  should be "<< s*(s+1)/2 <<std::endl;
-  mpi::reduce_in_place(world,y);
-  if (world.rank() ==0) std::cout<<" y = "<<y<< "  should be "<< s*(s+1)/2 <<std::endl;
-
-  mpi::broadcast(world,C);
-
-  // reduced x,y,C, .... a variadic form
-  mpi::reduce_in_place_v (world, x,y,C);
-
-  // more complex object
-  auto ca = array< array<int,1>, 1 > { array<int,1>{1,2}, array<int,1>{3,4}};
-  auto cC = ca;
-  mpi::reduce_in_place (world, cC);
-  if (world.rank() ==0) std::cout<<" cC = "<<cC<< std::endl;
- */
- return 0;
+ out << "----------------------------"<< std::endl;
 }
 
